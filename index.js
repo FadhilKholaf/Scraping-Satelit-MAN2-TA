@@ -1,7 +1,7 @@
 // IMPORT LIBRARY
 const express = require("express");
 const dotenv = require("dotenv");
-puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer");
 
 // MIDDLEWARE
 dotenv.config();
@@ -9,7 +9,7 @@ const app = express();
 app.use(express.json());
 
 // ENDPOINT
-app.get("api/siswa/:kelas", async (req, res) => {
+app.get("/api/siswa/:kelas", async (req, res) => {
   // LAUNCH PUPPETEER
   const siswa = async () => {
     const browser = await puppeteer.launch({
@@ -80,13 +80,13 @@ app.get("api/siswa/:kelas", async (req, res) => {
         });
 
         // RESPONSE DATA
-        res.json(students);
+        res.json({data:students});
       }
     }, 1000);
   };
 
   // RUN
-  siswa();
+  await siswa();
 });
 
 // START SERVER
