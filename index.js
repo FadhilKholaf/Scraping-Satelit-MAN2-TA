@@ -1,69 +1,41 @@
+// IMPORT LIBRARY
 const express = require("express");
 const dotenv = require("dotenv");
+puppeteer = require("puppeteer");
+
+// MIDDLEWARE
 dotenv.config();
 const app = express();
 app.use(express.json());
 
-let chrome = {};
-let puppeteer;
-
-if (process.env.AWS_LAMBDA_FUNCTION_VERSION) {
-  chrome = require("chrome-aws-lambda");
-  puppeteer = require("puppeteer-core");
-} else {
-  puppeteer = require("puppeteer");
-}
-
-app.get(process.env.API_ENDPOINT, async (req, res) => {
-  let options = {};
-
-  if (process.env.AWS_LAMBDA_FUNCTION_VERSION) {
-    options = {
-      args: [
-        ...chrome.args,
-        "--hide-scrollbars",
-        "--disable-web-security",
-        "--disable-features=SameSiteByDefaultCookies",
-      ],
-      defaultViewport: chrome.defaultViewport,
-      executablePath: await chrome.executablePath,
-      headless: true,
-      ignoreHTTPSErrors: true,
-    };
-  } else {
-    options = {
-      headless: true,
-      args: [
-        "--disable-web-security",
-        "--disable-features=SameSiteByDefaultCookies",
-      ],
-    };
-  }
-
+// ENDPOINT
+app.get("api/siswa/:kelas", async (req, res) => {
+  // LAUNCH PUPPETEER
   const siswa = async () => {
-    // DEV TESTING
-    // const browser = await puppeteer.launch({
-    //   headless: false,
-    //   defaultViewport: false,
-    //   args: [
-    //     "--disable-web-security",
-    //     "--disable-features=SameSiteByDefaultCookies",
-    //   ],
-    // });
+    const browser = await puppeteer.launch({
+      headless: false,
+      defaultViewport: false,
+      args: [
+        "--disable-web-security",
+        "--disable-features=SameSiteByDefaultCookies",
+      ],
+    });
 
-    // LAUNCH PUPPETEER
-    let browser = await puppeteer.launch(options);
-
+    // NEW PAGE
     const page = await browser.newPage();
+
+    // DIRECT TO MAN 2 API
     await page.goto(process.env.API_URL);
 
+    // FIND KELAS
     const kelas = await page.waitForSelector('select[name="class"]');
     await kelas.select(`${req.params.kelas}`);
 
+    // FILTER BUTTON
     const search = await page.waitForSelector("#button-search");
     await search.click();
 
-    // Define a function to check if the button is displayed
+    // CHECKING IS THE LOAD MORE BUTTON VISIBLE ?
     const checkButtonDisplayed = async () => {
       const button = await page.$(".btn-load-more");
       if (button) {
@@ -73,7 +45,7 @@ app.get(process.env.API_ENDPOINT, async (req, res) => {
       return false;
     };
 
-    // Set up an interval to trigger load_more every 10 seconds if the button is displayed
+    // EXTRACT DATA
     let i = 1;
     const interval = setInterval(async () => {
       if (await checkButtonDisplayed()) {
@@ -85,10 +57,13 @@ app.get(process.env.API_ENDPOINT, async (req, res) => {
       } else {
         clearInterval(interval);
         console.log("Data loaded successfully");
+
+        // STORING DATA
         const students = await page.evaluate(() => {
           const studentElements = document.querySelectorAll(".card-siswa");
           const studentsData = [];
 
+          // PUSH TO ARRAY
           studentElements.forEach((element, index) => {
             const urut = index + 1;
             const name = element.querySelector(".dz-name").textContent.trim();
@@ -104,8 +79,7 @@ app.get(process.env.API_ENDPOINT, async (req, res) => {
           return studentsData;
         });
 
-        // Print the name and NISN of each student
-        // console.log(JSON.stringify(students, null, 2));
+        // RESPONSE DATA
         res.json(students);
       }
     }, 1000);
@@ -119,5 +93,3 @@ app.get(process.env.API_ENDPOINT, async (req, res) => {
 app.listen(process.env.PORT || 3000, () => {
   console.log("Server started");
 });
-
-module.exports = app;
