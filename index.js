@@ -13,7 +13,7 @@ app.get("api/siswa/:kelas", async (req, res) => {
   // LAUNCH PUPPETEER
   const siswa = async () => {
     const browser = await puppeteer.launch({
-      headless: false,
+      headless: true,
       defaultViewport: false,
       args: [
         "--disable-web-security",
